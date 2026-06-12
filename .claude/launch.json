@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "seating-generator",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["challenge-7-seating-generator/test/serve.cjs"],
+      "port": 4173
+    }
+  ]
+}

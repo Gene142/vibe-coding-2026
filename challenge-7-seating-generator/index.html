@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seating Group Generator</title>
+<style>
+  :root {
+    --navy: #0b2d52;
+    --navy-light: #15457a;
+    --accent: #0e8a72;
+    --accent-light: #e6f4f1;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1d2733;
+    --muted: #66758a;
+    --line: #dfe5ec;
+    --ok: #0e8a72;
+    --warn: #b07d12;
+    --error: #b3372f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 26px 24px 22px;
+  }
+  .shell { max-width: 980px; margin: 0 auto; padding: 0 8px; }
+  header h1 { margin: 0 0 4px; font-size: 26px; font-weight: 650; }
+  header p { margin: 0; opacity: .85; font-size: 14.5px; }
+  .privacy-badge {
+    display: inline-block; margin-top: 12px; padding: 5px 12px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 99px; font-size: 12.5px;
+  }
+  main { max-width: 980px; margin: 26px auto 60px; padding: 0 16px; }
+  section.card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px 24px; margin-bottom: 18px; transition: opacity .2s;
+  }
+  section.card.disabled { opacity: .45; pointer-events: none; }
+  .step-label { font-size: 12px; letter-spacing: .08em; font-weight: 700; color: var(--accent); text-transform: uppercase; }
+  h2 { margin: 4px 0 14px; font-size: 19px; }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+
+  #dropzone {
+    border: 2px dashed var(--line); border-radius: 10px; padding: 30px 20px;
+    text-align: center; cursor: pointer; transition: all .15s; background: #fafbfd;
+  }
+  #dropzone:hover, #dropzone.drag { border-color: var(--accent); background: var(--accent-light); }
+  #dropzone .big { font-size: 16px; font-weight: 600; }
+  .toolbar { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+  button {
+    font: inherit; border-radius: 8px; cursor: pointer; padding: 9px 16px;
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+  }
+  button:hover { border-color: var(--navy-light); }
+  button.primary {
+    background: var(--navy); border-color: var(--navy); color: #fff;
+    font-weight: 600; padding: 12px 26px; font-size: 15.5px;
+  }
+  button.primary:hover { background: var(--navy-light); }
+  button.primary:disabled { background: #9aa7b8; border-color: #9aa7b8; cursor: not-allowed; }
+  button.accent { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.accent:hover { filter: brightness(1.08); }
+
+  .status { margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: #eef2f7; font-size: 14px; }
+  .status.ok { background: var(--accent-light); border: 1px solid #bfe2da; }
+  .status.error { background: #fbeae9; border: 1px solid #ecc8c5; color: var(--error); }
+  .warn-text { color: var(--warn); font-size: 13px; }
+
+  .settings-row { display: flex; gap: 26px; flex-wrap: wrap; }
+  .field label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
+  .field input {
+    font: inherit; width: 150px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+  }
+  .field .hint { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+
+  /* results */
+  .score-wrap { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+  .score-circle { position: relative; width: 124px; height: 124px; flex: 0 0 auto; }
+  .score-circle svg { transform: rotate(-90deg); }
+  .score-circle .track { fill: none; stroke: var(--line); stroke-width: 10; }
+  .score-circle .meter { fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .6s; }
+  #score-number {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 700; color: var(--navy);
+  }
+  .score-side { flex: 1; min-width: 260px; }
+  #score-caption { margin: 2px 0 14px; font-size: 14px; color: var(--muted); }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .bar-label { width: 185px; font-size: 13.5px; flex: 0 0 auto; }
+  .bar-track { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 99px; }
+  .bar-value { width: 30px; text-align: right; font-size: 13px; font-weight: 600; }
+
+  #verify-list { list-style: none; padding: 0; margin: 14px 0 0; }
+  #verify-list li { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .check-icon {
+    flex: 0 0 24px; height: 24px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 14px; color: #fff; margin-top: 2px;
+  }
+  .check-ok .check-icon { background: var(--ok); }
+  .check-warn .check-icon { background: var(--warn); }
+
+  #day-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 14px; }
+  .tab { padding: 7px 16px; border-radius: 99px; font-size: 14px; }
+  .tab.active { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 600; }
+  #day-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); gap: 14px; }
+  .table-card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fafbfd; }
+  .table-card-head { background: var(--navy); color: #fff; font-weight: 600; padding: 8px 14px; font-size: 14px; }
+  .table-card-head .muted { color: rgba(255,255,255,.65); font-weight: 400; }
+  .table-card ul { list-style: none; margin: 0; padding: 8px 14px 12px; }
+  .table-card li { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .table-card li:last-child { border-bottom: none; }
+  .member-meta { display: block; font-size: 11.5px; }
+
+  .results-actions { margin-top: 22px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 0 16px 40px; max-width: 760px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="shell">
+    <h1>Seating Group Generator</h1>
+    <p>Daily table configurations for program participants — gender-balanced, maximally mixed, provably valid.</p>
+    <span class="privacy-badge">🔒 Runs entirely in your browser — participant data never leaves this computer</span>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="step-1">
+    <div class="step-label">Step 1</div>
+    <h2>Upload the participant list</h2>
+    <div id="dropzone">
+      <div class="big">Drop your Excel or CSV file here</div>
+      <div class="muted">or click to browse — expected columns: Name · Industry · Gender · Nationality · Coaching Group</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden">
+    <div class="toolbar">
+      <button id="btn-template">⬇ Download blank template</button>
+      <button id="btn-sample">Try with sample data (48 participants)</button>
+    </div>
+    <div id="parse-status" class="status hidden"></div>
+  </section>
+
+  <section class="card disabled" id="step-2">
+    <div class="step-label">Step 2</div>
+    <h2>Choose the setup</h2>
+    <div class="settings-row">
+      <div class="field">
+        <label for="inp-tables">Number of tables</label>
+        <input type="number" id="inp-tables" min="1" max="60" placeholder="e.g. 8">
+        <div class="hint">Suggested automatically (~6 per table) — adjust freely.</div>
+      </div>
+      <div class="field">
+        <label for="inp-days">Daily configurations</label>
+        <input type="number" id="inp-days" min="1" max="60" value="5">
+        <div class="hint">One fresh seating per program day.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card disabled" id="step-3">
+    <div class="step-label">Step 3</div>
+    <h2>Generate</h2>
+    <p class="muted" style="margin-top:-6px">A deterministic algorithm (no AI guesswork) builds every day's seating, then re-verifies its own output. Same input, same settings → identical result, every time.</p>
+    <button class="primary" id="btn-generate" disabled>Generate seating plan</button>
+    <div id="gen-status" class="status hidden"></div>
+  </section>
+
+  <section class="card hidden" id="results">
+    <div class="step-label">Result</div>
+    <h2>Mix quality</h2>
+    <div class="score-wrap">
+      <div class="score-circle">
+        <svg width="124" height="124" viewBox="0 0 124 124">
+          <circle class="track" cx="62" cy="62" r="52"></circle>
+          <circle class="meter" id="score-ring" cx="62" cy="62" r="52"></circle>
+        </svg>
+        <div id="score-number">–</div>
+      </div>
+      <div class="score-side">
+        <div id="score-caption"></div>
+        <div id="score-bars"></div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:26px">Verification <span class="muted" style="font-weight:400;font-size:14px">— recomputed from the output itself</span></h2>
+    <ul id="verify-list"></ul>
+
+    <h2 style="margin-top:26px">Preview</h2>
+    <div id="day-tabs"></div>
+    <div id="day-grid"></div>
+
+    <div class="results-actions">
+      <button class="accent" id="btn-download">⬇ Download Excel (one sheet per day)</button>
+      <span class="muted">Includes a summary sheet with score &amp; verification, plus a by-participant overview.</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Built for the Vibe Coding Workshop — Challenge #7 (Operations).
+  No login, no server, no data storage: this page works offline and processes everything locally.
+  Sensitive participant data stays on this machine.
+</footer>
+
+<script src="xlsx.full.min.js"></script>
+<script src="mixer.js"></script>
+<script src="sample-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

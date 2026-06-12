@@ -1,0 +1,49 @@
+Name,Industry,Gender,Nationality,Coaching Group
+Amara Okafor,Finance,F,Nigeria,A
+Lukas Meyer,Technology,M,Germany,B
+Sofia Rossi,Consulting,F,Italy,C
+Kenji Tanaka,Finance,M,Japan,D
+Priya Sharma,Technology,F,India,E
+Mateo Fernandez,Consulting,M,Argentina,F
+Elena Volkova,Healthcare,F,Kazakhstan,B
+Omar Haddad,Healthcare,M,Lebanon,C
+Ingrid Larsen,Finance,F,Norway,D
+Carlos Mendoza,Technology,M,Mexico,E
+Mei Chen,Consulting,F,China,F
+David Cohen,Finance,M,Israel,A
+Fatima Al-Rashid,Technology,F,United Arab Emirates,C
+Thomas Müller,Consulting,M,Switzerland,D
+Ana Silva,Healthcare,F,Brazil,E
+James Okonkwo,Healthcare,M,Nigeria,F
+Charlotte Dubois,Finance,F,France,A
+Raj Patel,Technology,M,India,B
+Yuki Nakamura,Consulting,F,Japan,D
+Pedro Alvarez,Finance,M,Spain,E
+Astrid Johansson,Technology,F,Sweden,F
+Hassan Farouk,Consulting,M,Egypt,A
+Linh Nguyen,Healthcare,F,Vietnam,B
+Marco Bianchi,Healthcare,M,Italy,C
+Zanele Dlamini,Energy,F,South Africa,E
+Andrei Popescu,Energy,M,Romania,F
+Isabella Santos,Consumer Goods,F,Brazil,A
+Minjun Kim,Consumer Goods,M,South Korea,B
+Leila Benali,Manufacturing,F,Morocco,C
+Erik Andersen,Manufacturing,M,Denmark,D
+Nino Beridze,Energy,F,Georgia,F
+Samuel Boateng,Energy,M,Ghana,A
+Hannah Schmidt,Consumer Goods,F,Austria,B
+Diego Torres,Consumer Goods,M,Chile,C
+Aisha Khan,Manufacturing,F,Pakistan,D
+Liam O'Brien,Manufacturing,M,Ireland,E
+Camille Laurent,Energy,F,France,A
+Viktor Horvat,Energy,M,Croatia,B
+Nadia Rahman,Consumer Goods,F,Bangladesh,C
+Henrik Olsen,Consumer Goods,M,Denmark,D
+Grace Wanjiru,Manufacturing,F,Kenya,E
+Felipe Costa,Manufacturing,M,Brazil,F
+Sara Lindqvist,Telecom,F,Finland,B
+Ahmed Mansour,Telecom,M,Egypt,C
+Valentina Cruz,Telecom,F,Colombia,D
+Jan Kowalski,Telecom,M,Poland,E
+Rebecca Tan,Telecom,F,Singapore,F
+Daniel Levy,Telecom,M,Switzerland,A
