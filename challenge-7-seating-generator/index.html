@@ -201,28 +201,7 @@
     <details class="weights-section" id="weights-details">
       <summary>Mix priorities</summary>
       <p class="weights-hint">Adjust how much each factor influences the seating optimiser. Higher = more weight in the score. Gender balance is always a hard constraint and cannot be changed.</p>
-      <div class="weight-rows">
-        <div class="weight-row">
-          <label for="w-repeat">Fresh pairings</label>
-          <input type="range" id="w-repeat" min="1" max="10" value="10">
-          <span class="weight-val" id="wv-repeat">10</span>
-        </div>
-        <div class="weight-row">
-          <label for="w-coaching">Coaching group variety</label>
-          <input type="range" id="w-coaching" min="1" max="10" value="3">
-          <span class="weight-val" id="wv-coaching">3</span>
-        </div>
-        <div class="weight-row">
-          <label for="w-industry">Industry variety</label>
-          <input type="range" id="w-industry" min="1" max="10" value="2">
-          <span class="weight-val" id="wv-industry">2</span>
-        </div>
-        <div class="weight-row">
-          <label for="w-nationality">Nationality variety</label>
-          <input type="range" id="w-nationality" min="1" max="10" value="2">
-          <span class="weight-val" id="wv-nationality">2</span>
-        </div>
-      </div>
+      <div id="weight-rows" class="weight-rows"></div>
       <div class="weights-footer">
         <button class="btn-reset" id="btn-reset-weights">Reset to defaults</button>
       </div>

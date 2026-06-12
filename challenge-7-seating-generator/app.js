@@ -10,6 +10,8 @@
     fileName: null,
     participants: [],
     warnings: [],
+    extraColumns: [],
+    weightSliders: [],
     result: null,
   };
 
@@ -29,6 +31,39 @@
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  // -------------------------------------------------- weight sliders --
+  var BUILTIN_SLIDERS = [
+    { id: 'repeat',        label: 'Fresh pairings',         defaultVal: 10 },
+    { id: 'coachingGroup', label: 'Coaching group variety', defaultVal: 3 },
+    { id: 'industry',      label: 'Industry variety',       defaultVal: 2 },
+    { id: 'nationality',   label: 'Nationality variety',    defaultVal: 2 },
+  ];
+
+  function renderWeightSliders(extraColumns) {
+    var sliders = BUILTIN_SLIDERS.slice();
+    (extraColumns || []).forEach(function (ec) {
+      sliders.push({ id: ec.key, label: esc(ec.label) + ' variety', defaultVal: 2 });
+    });
+
+    var html = '';
+    sliders.forEach(function (s) {
+      html += '<div class="weight-row">' +
+        '<label for="w-' + esc(s.id) + '">' + s.label + '</label>' +
+        '<input type="range" id="w-' + esc(s.id) + '" min="1" max="10" value="' + s.defaultVal + '">' +
+        '<span class="weight-val" id="wv-' + esc(s.id) + '">' + s.defaultVal + '</span>' +
+        '</div>';
+    });
+    $('weight-rows').innerHTML = html;
+
+    sliders.forEach(function (s) {
+      var slider = $('w-' + s.id);
+      var valEl  = $('wv-' + s.id);
+      if (slider) slider.addEventListener('input', function () { valEl.textContent = slider.value; });
+    });
+
+    state.weightSliders = sliders;
   }
 
   // -------------------------------------------------------- file intake --
@@ -58,6 +93,7 @@
     state.fileName = fileName;
     state.participants = parsed.participants;
     state.warnings = parsed.warnings;
+    state.extraColumns = parsed.extraColumns || [];
     state.result = null;
 
     var n = parsed.participants.length;
@@ -67,11 +103,17 @@
 
     var mapped = Object.keys(parsed.columnMap).map(function (f) { return Mixer.FIELD_LABELS[f]; }).join(', ');
     var html = '<strong>' + esc(fileName) + '</strong> — ' + n + ' participants loaded (' + genderTxt + ').<br>' +
-      '<span class="muted">Columns recognised: ' + esc(mapped) + '</span>';
+      '<span class="muted">Columns recognised: ' + esc(mapped);
+    if (state.extraColumns.length) {
+      html += ' · Extra: ' + state.extraColumns.map(function (ec) { return esc(ec.label); }).join(', ');
+    }
+    html += '</span>';
     if (parsed.warnings.length) {
       html += '<br><span class="warn-text">⚠ ' + parsed.warnings.map(esc).join('<br>⚠ ') + '</span>';
     }
     setStatus(html, 'ok');
+
+    renderWeightSliders(state.extraColumns);
 
     // Sensible defaults: ~6 people per table.
     if (!$('inp-tables').value) $('inp-tables').value = Math.max(2, Math.round(n / 6));
@@ -99,13 +141,14 @@
     // Let the spinner paint before the (CPU-bound) optimisation starts.
     setTimeout(function () {
       try {
-        var weights = {
-          repeat:        parseInt($('w-repeat').value, 10),
-          coachingGroup: parseInt($('w-coaching').value, 10),
-          industry:      parseInt($('w-industry').value, 10),
-          nationality:   parseInt($('w-nationality').value, 10),
-        };
-        var result = Mixer.generate(state.participants, { tables: T, days: D, weights: weights });
+        var weights = {};
+        state.weightSliders.forEach(function (s) {
+          var el = $('w-' + s.id);
+          if (el) weights[s.id] = parseInt(el.value, 10);
+        });
+        var result = Mixer.generate(state.participants, {
+          tables: T, days: D, weights: weights, extraAttrs: state.extraColumns,
+        });
         state.result = result;
         show(box, false);
         renderResults(result);
@@ -139,19 +182,23 @@
     }
     $('score-caption').textContent = msg;
 
-    // Component bars.
-    var labels = {
+    // Component bars — built from active attrs + extras + gender.
+    var barLabels = {
       repeat: 'Fresh pairings',
       coachingGroup: 'Coaching group spread',
       industry: 'Industry spread',
       nationality: 'Nationality spread',
       gender: 'Gender balance',
     };
+    (r.meta.extraAttrs || []).forEach(function (ea) {
+      barLabels[ea.key] = ea.label + ' spread';
+    });
+    var barKeys = ['repeat'].concat(r.meta.activeAttrs).concat(['gender']);
     var bars = '';
-    Object.keys(labels).forEach(function (k) {
+    barKeys.forEach(function (k) {
       var v = r.score.components[k];
       if (v == null) return;
-      bars += '<div class="bar-row"><span class="bar-label">' + labels[k] + '</span>' +
+      bars += '<div class="bar-row"><span class="bar-label">' + esc(barLabels[k] || k) + '</span>' +
         '<div class="bar-track"><div class="bar-fill" style="width:' + v + '%"></div></div>' +
         '<span class="bar-value">' + v + '</span></div>';
     });
@@ -207,6 +254,7 @@
     var sheets = Mixer.buildWorkbookSheets(state.participants, r, {
       fileName: state.fileName,
       generatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      extraColumns: state.extraColumns || [],
     });
     var wb = XLSX.utils.book_new();
     sheets.forEach(function (s) {
@@ -216,7 +264,9 @@
       } else if (s.name === 'By participant') {
         ws['!cols'] = [{ wch: 26 }].concat(s.rows[0].slice(1).map(function () { return { wch: 8 }; }));
       } else {
-        ws['!cols'] = [{ wch: 7 }, { wch: 26 }, { wch: 8 }, { wch: 16 }, { wch: 20 }, { wch: 16 }];
+        var dayCols = [{ wch: 7 }, { wch: 26 }, { wch: 8 }, { wch: 16 }, { wch: 20 }, { wch: 16 }];
+        (state.extraColumns || []).forEach(function () { dayCols.push({ wch: 16 }); });
+        ws['!cols'] = dayCols;
       }
       XLSX.utils.book_append_sheet(wb, ws, s.name);
     });
@@ -266,17 +316,14 @@
     $('btn-generate').addEventListener('click', generate);
     $('btn-download').addEventListener('click', downloadResult);
 
-    // Weight sliders — live value labels.
-    [['w-repeat','wv-repeat'], ['w-coaching','wv-coaching'], ['w-industry','wv-industry'], ['w-nationality','wv-nationality']].forEach(function (pair) {
-      var slider = $(pair[0]), label = $(pair[1]);
-      slider.addEventListener('input', function () { label.textContent = slider.value; });
-    });
+    // Render default sliders (no extra columns yet) on page load.
+    renderWeightSliders([]);
 
     $('btn-reset-weights').addEventListener('click', function () {
-      var defaults = { 'w-repeat': 10, 'w-coaching': 3, 'w-industry': 2, 'w-nationality': 2 };
-      Object.keys(defaults).forEach(function (id) {
-        $(id).value = defaults[id];
-        $('wv-' + id.slice(2)).textContent = defaults[id];
+      state.weightSliders.forEach(function (s) {
+        var el = $('w-' + s.id);
+        var vEl = $('wv-' + s.id);
+        if (el) { el.value = s.defaultVal; vEl.textContent = s.defaultVal; }
       });
     });
 

@@ -88,7 +88,7 @@
         break;
       }
     }
-    if (headerIdx < 0) return { participants: [], columnMap: {}, errors: ['The file is empty.'], warnings: warnings };
+    if (headerIdx < 0) return { participants: [], columnMap: {}, extraColumns: [], errors: ['The file is empty.'], warnings: warnings };
 
     const headers = rows[headerIdx].map(function (h) { return String(h == null ? '' : h).trim(); });
     const canonHeaders = headers.map(canon);
@@ -119,6 +119,19 @@
       }
     });
 
+    // Any column not claimed by a known field becomes a user-defined extra attribute.
+    const extraKeysSeen = {};
+    const extraColumns = [];
+    for (let c = 0; c < headers.length; c++) {
+      if (used[c] || !headers[c].trim() || !canonHeaders[c]) continue;
+      let baseKey = 'ext_' + canonHeaders[c];
+      let key = baseKey;
+      let n = 2;
+      while (extraKeysSeen[key]) { key = baseKey + '_' + (n++); }
+      extraKeysSeen[key] = true;
+      extraColumns.push({ key: key, label: headers[c].trim(), colIdx: c });
+    }
+
     if (columnMap.name == null) {
       errors.push('Could not find a "Name" column. Found headers: ' + headers.filter(Boolean).join(', '));
     }
@@ -128,7 +141,7 @@
     ['nationality', 'industry', 'coachingGroup'].forEach(function (f) {
       if (columnMap[f] == null) warnings.push('No "' + FIELD_LABELS[f] + '" column found — that mixing criterion will be skipped.');
     });
-    if (errors.length) return { participants: [], columnMap: columnMap, errors: errors, warnings: warnings };
+    if (errors.length) return { participants: [], columnMap: columnMap, extraColumns: extraColumns, errors: errors, warnings: warnings };
 
     const participants = [];
     const seen = {};
@@ -148,17 +161,21 @@
       const key = name.toLowerCase();
       if (seen[key]) dupes.push(name);
       seen[key] = true;
-      participants.push({
+      const p = {
         name: name,
         gender: normGender(get('gender')),
         nationality: get('nationality'),
         industry: get('industry'),
         coachingGroup: get('coachingGroup'),
+      };
+      extraColumns.forEach(function (ec) {
+        p[ec.key] = String(row[ec.colIdx] == null ? '' : row[ec.colIdx]).trim();
       });
+      participants.push(p);
     }
     if (dupes.length) warnings.push('Duplicate names found (kept as separate people): ' + dupes.join(', '));
     if (!participants.length) errors.push('No participant rows found below the header row.');
-    return { participants: participants, columnMap: columnMap, errors: errors, warnings: warnings };
+    return { participants: participants, columnMap: columnMap, extraColumns: extraColumns, errors: errors, warnings: warnings };
   }
 
   // ------------------------------------------------------------ engine --
@@ -182,7 +199,12 @@
     if (!(D >= 1)) throw new Error('Number of daily configurations must be at least 1.');
     if (D > 60) throw new Error('Daily configurations capped at 60.');
 
+    const extraAttrs = (opts.extraAttrs || []).map(function (ea) { return ea.key; });
+    const allAttrs = ATTRS.concat(extraAttrs);
+
     const weights = Object.assign({}, DEFAULT_WEIGHTS, opts.weights || {});
+    extraAttrs.forEach(function (key) { if (weights[key] == null) weights[key] = 2; });
+
     const baseSeed = (opts.seed == null ? 42 : opts.seed) >>> 0;
     // Effort scales down for very large groups so generation stays fast.
     const starts = opts.starts || (N <= 80 ? 12 : N <= 160 ? 8 : 4);
@@ -205,7 +227,7 @@
     // Attribute value encoding; blank values get -1 (never penalised).
     const attrCodes = {};
     const attrActive = {};
-    ATTRS.forEach(function (a) {
+    allAttrs.forEach(function (a) {
       const codeOf = {};
       let next = 0;
       const arr = new Int32Array(N);
@@ -218,7 +240,7 @@
       attrCodes[a] = arr;
       attrActive[a] = next > 1; // criterion only meaningful with ≥2 distinct values
     });
-    const activeAttrs = ATTRS.filter(function (a) { return attrActive[a]; });
+    const activeAttrs = allAttrs.filter(function (a) { return attrActive[a]; });
 
     const pairCount = new Uint16Array(N * N);
     const pk = function (i, j) { return i < j ? i * N + j : j * N + i; };
@@ -402,6 +424,7 @@
         starts: starts,
         weights: weights,
         activeAttrs: activeAttrs.slice(),
+        extraAttrs: opts.extraAttrs || [],
         genderClasses: classNames.map(function (g, i) { return { gender: g, count: classes[i].length }; }),
       },
     };
@@ -521,26 +544,27 @@
     }
     const genderScore = clampScore(100 - 20 * genderViolations);
 
+    // Extra/unknown attrs get the same share as nationality (0.15), renormalised below.
+    function shareFor(key) { return SCORE_SHARES[key] != null ? SCORE_SHARES[key] : 0.15; }
+
     // Weighted overall; criteria without data are excluded and shares renormalised.
     const parts = [{ key: 'repeat', score: repeatScore }];
-    ATTRS.forEach(function (a) {
-      if (activeAttrs.indexOf(a) >= 0) parts.push({ key: a, score: attrScores[a] });
-    });
+    activeAttrs.forEach(function (a) { parts.push({ key: a, score: attrScores[a] }); });
     parts.push({ key: 'gender', score: genderScore });
     let shareSum = 0;
-    parts.forEach(function (p) { shareSum += SCORE_SHARES[p.key]; });
+    parts.forEach(function (p) { shareSum += shareFor(p.key); });
     let overall = 0;
-    parts.forEach(function (p) { overall += (SCORE_SHARES[p.key] / shareSum) * p.score; });
+    parts.forEach(function (p) { overall += (shareFor(p.key) / shareSum) * p.score; });
+
+    // Build components: all active attrs + null placeholders for inactive built-ins.
+    const components = { repeat: Math.round(repeatScore) };
+    activeAttrs.forEach(function (a) { components[a] = Math.round(attrScores[a]); });
+    ATTRS.forEach(function (a) { if (components[a] == null) components[a] = null; });
+    components.gender = Math.round(genderScore);
 
     return {
       overall: Math.round(overall),
-      components: {
-        repeat: Math.round(repeatScore),
-        coachingGroup: attrScores.coachingGroup != null ? Math.round(attrScores.coachingGroup) : null,
-        industry: attrScores.industry != null ? Math.round(attrScores.industry) : null,
-        nationality: attrScores.nationality != null ? Math.round(attrScores.nationality) : null,
-        gender: Math.round(genderScore),
-      },
+      components: components,
       detail: {
         totalMeetings: M,
         uniquePairs: U,
@@ -674,6 +698,10 @@
 
     const s = result.score;
     const fmt = function (v) { return v == null ? 'n/a' : v + ' / 100'; };
+    // Label map for score component rows: built-ins + extra attrs.
+    const attrLabels = { coachingGroup: 'Coaching group', industry: 'Industry', nationality: 'Nationality' };
+    (result.meta.extraAttrs || []).forEach(function (ea) { attrLabels[ea.key] = ea.label; });
+
     const summary = [
       ['Seating Group Generator — Summary'],
       [],
@@ -685,13 +713,13 @@
       [],
       ['MIX SCORE', s.overall + ' / 100'],
       ['  Fresh pairings (repeat avoidance)', fmt(s.components.repeat)],
-      ['  Coaching group spread', fmt(s.components.coachingGroup)],
-      ['  Industry spread', fmt(s.components.industry)],
-      ['  Nationality spread', fmt(s.components.nationality)],
-      ['  Gender balance', fmt(s.components.gender)],
-      [],
-      ['Verification (recomputed from this output)'],
     ];
+    result.meta.activeAttrs.forEach(function (a) {
+      summary.push(['  ' + (attrLabels[a] || a) + ' spread', fmt(s.components[a])]);
+    });
+    summary.push(['  Gender balance', fmt(s.components.gender)]);
+    summary.push([]);
+    summary.push(['Verification (recomputed from this output)']);
     result.verification.checks.forEach(function (c) {
       summary.push([(c.ok ? 'PASS' : 'CHECK') + ' — ' + c.label, c.detail]);
     });
@@ -700,12 +728,17 @@
     summary.push(['Max times any pair sits together', String(s.detail.maxTimesAnyPairMet)]);
     sheets.push({ name: 'Summary', rows: summary });
 
+    const extraCols = result.meta.extraAttrs || [];
     for (let d = 0; d < D; d++) {
-      const rows = [['Table', 'Name', 'Gender', 'Nationality', 'Industry', 'Coaching Group']];
+      const header = ['Table', 'Name', 'Gender', 'Nationality', 'Industry', 'Coaching Group'];
+      extraCols.forEach(function (ec) { header.push(ec.label); });
+      const rows = [header];
       result.days[d].tables.forEach(function (members, t) {
         members.forEach(function (i) {
           const p = participants[i];
-          rows.push([t + 1, p.name, p.gender, p.nationality || '', p.industry || '', p.coachingGroup || '']);
+          const row = [t + 1, p.name, p.gender, p.nationality || '', p.industry || '', p.coachingGroup || ''];
+          extraCols.forEach(function (ec) { row.push(p[ec.key] || ''); });
+          rows.push(row);
         });
       });
       sheets.push({ name: 'Day ' + (d + 1), rows: rows });
