@@ -99,9 +99,13 @@
     // Let the spinner paint before the (CPU-bound) optimisation starts.
     setTimeout(function () {
       try {
-        // Future: pass custom weights here, e.g. {weights:{coachingGroup:6}}
-        // to make coaching-group variety dominate. UI deliberately not built yet.
-        var result = Mixer.generate(state.participants, { tables: T, days: D });
+        var weights = {
+          repeat:        parseInt($('w-repeat').value, 10),
+          coachingGroup: parseInt($('w-coaching').value, 10),
+          industry:      parseInt($('w-industry').value, 10),
+          nationality:   parseInt($('w-nationality').value, 10),
+        };
+        var result = Mixer.generate(state.participants, { tables: T, days: D, weights: weights });
         state.result = result;
         show(box, false);
         renderResults(result);
@@ -261,6 +265,20 @@
     $('btn-sample').addEventListener('click', loadSample);
     $('btn-generate').addEventListener('click', generate);
     $('btn-download').addEventListener('click', downloadResult);
+
+    // Weight sliders — live value labels.
+    [['w-repeat','wv-repeat'], ['w-coaching','wv-coaching'], ['w-industry','wv-industry'], ['w-nationality','wv-nationality']].forEach(function (pair) {
+      var slider = $(pair[0]), label = $(pair[1]);
+      slider.addEventListener('input', function () { label.textContent = slider.value; });
+    });
+
+    $('btn-reset-weights').addEventListener('click', function () {
+      var defaults = { 'w-repeat': 10, 'w-coaching': 3, 'w-industry': 2, 'w-nationality': 2 };
+      Object.keys(defaults).forEach(function (id) {
+        $(id).value = defaults[id];
+        $('wv-' + id.slice(2)).textContent = defaults[id];
+      });
+    });
 
     refreshSteps();
   });

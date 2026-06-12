@@ -79,10 +79,39 @@
 
   .settings-row { display: flex; gap: 26px; flex-wrap: wrap; }
   .field label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
-  .field input {
+  .field input[type="number"] {
     font: inherit; width: 150px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
   }
   .field .hint { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+
+  .weights-section { margin-top: 22px; }
+  .weights-section summary {
+    cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--navy);
+    user-select: none; list-style: none; display: flex; align-items: center; gap: 6px;
+  }
+  .weights-section summary::before { content: '▶'; font-size: 10px; transition: transform .15s; }
+  .weights-section[open] summary::before { transform: rotate(90deg); }
+  .weights-section summary::-webkit-details-marker { display: none; }
+  .weights-section .weights-hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 14px; }
+  .weight-rows { display: flex; flex-direction: column; gap: 10px; }
+  .weight-row { display: flex; align-items: center; gap: 12px; }
+  .weight-row label { width: 180px; font-size: 13.5px; flex: 0 0 auto; }
+  .weight-row input[type="range"] {
+    flex: 1; -webkit-appearance: none; height: 6px; border-radius: 99px;
+    background: var(--line); outline: none; cursor: pointer; border: none; padding: 0;
+  }
+  .weight-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--navy); cursor: pointer;
+  }
+  .weight-row input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--navy); cursor: pointer; border: none;
+  }
+  .weight-val {
+    width: 28px; text-align: right; font-size: 13px; font-weight: 700; color: var(--accent);
+  }
+  .weights-footer { margin-top: 12px; }
+  .btn-reset { font-size: 12.5px; padding: 5px 12px; color: var(--muted); }
 
   /* results */
   .score-wrap { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
@@ -168,6 +197,36 @@
         <div class="hint">One fresh seating per program day.</div>
       </div>
     </div>
+
+    <details class="weights-section" id="weights-details">
+      <summary>Mix priorities</summary>
+      <p class="weights-hint">Adjust how much each factor influences the seating optimiser. Higher = more weight in the score. Gender balance is always a hard constraint and cannot be changed.</p>
+      <div class="weight-rows">
+        <div class="weight-row">
+          <label for="w-repeat">Fresh pairings</label>
+          <input type="range" id="w-repeat" min="1" max="10" value="10">
+          <span class="weight-val" id="wv-repeat">10</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-coaching">Coaching group variety</label>
+          <input type="range" id="w-coaching" min="1" max="10" value="3">
+          <span class="weight-val" id="wv-coaching">3</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-industry">Industry variety</label>
+          <input type="range" id="w-industry" min="1" max="10" value="2">
+          <span class="weight-val" id="wv-industry">2</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-nationality">Nationality variety</label>
+          <input type="range" id="w-nationality" min="1" max="10" value="2">
+          <span class="weight-val" id="wv-nationality">2</span>
+        </div>
+      </div>
+      <div class="weights-footer">
+        <button class="btn-reset" id="btn-reset-weights">Reset to defaults</button>
+      </div>
+    </details>
   </section>
 
   <section class="card disabled" id="step-3">
